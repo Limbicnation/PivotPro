@@ -11,13 +11,14 @@ bl_info = {
 import bpy
 from mathutils import Vector
 
-# Create Functions to Set Pivot Points
 def set_origin_to_bbox(obj, location='CENTER'):
     """
     Snap the 3D cursor to a specified bounding box location and set the object's origin to the cursor.
-    Location can be 'CENTER', 'MIN_X', 'MAX_X', 'MIN_Y', 'MAX_Y', 'MIN_Z', 'MAX_Z'.
+    Location can be 'CENTER', 'MIN_X', 'MAX_X', 'MIN_Y', 'MAX_Y', 'MIN_Z', 'MAX_Z',
+    'CENTER_X', 'CENTER_Y', 'CENTER_Z'.
     """
-    assert location in ('CENTER', 'MIN_X', 'MAX_X', 'MIN_Y', 'MAX_Y', 'MIN_Z', 'MAX_Z'), "Invalid location specified."
+    assert location in ('CENTER', 'MIN_X', 'MAX_X', 'MIN_Y', 'MAX_Y', 'MIN_Z', 'MAX_Z',
+                        'CENTER_X', 'CENTER_Y', 'CENTER_Z'), "Invalid location specified."
 
     # Calculate the bounding box corners in world space
     bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
@@ -26,13 +27,23 @@ def set_origin_to_bbox(obj, location='CENTER'):
     if location == 'CENTER':
         pivot_point = sum(bbox_corners, Vector()) / 8
     else:
-        axis_index = {'X': 0, 'Y': 1, 'Z': 2}[location.split('_')[1]]
-        pivot_points = [corner[axis_index] for corner in bbox_corners]
-        if 'MIN' in location:
-            pivot_value = min(pivot_points)
-        else:  # 'MAX' in location
-            pivot_value = max(pivot_points)
-        pivot_point = bbox_corners[pivot_points.index(pivot_value)]
+        axis_index = {'X': 0, 'Y': 1, 'Z': 2}[location.split('_')[-1]]
+        if location.startswith('CENTER'):
+            # Initialize the pivot_point as a Vector
+            pivot_point = Vector((0, 0, 0))
+            count = 0
+            for i in range(8):
+                if i & (1 << axis_index):
+                    pivot_point += bbox_corners[i]
+                    count += 1
+            pivot_point /= count
+        else:
+            pivot_points = [corner[axis_index] for corner in bbox_corners]
+            if 'MIN' in location:
+                pivot_value = min(pivot_points)
+            else:  # 'MAX' in location
+                pivot_value = max(pivot_points)
+            pivot_point = bbox_corners[pivot_points.index(pivot_value)]
 
     # Move the 3D cursor to the calculated pivot point
     bpy.context.scene.cursor.location = pivot_point
@@ -45,7 +56,6 @@ def update_pivot(self, context):
     if obj:
         set_origin_to_bbox(obj, self.pivot_type)
 
-# Define the Operator Classes
 class OBJECT_OT_SetPivot(bpy.types.Operator):
     """Set Pivot Point"""
     bl_idname = "object.set_pivot"
@@ -61,6 +71,9 @@ class OBJECT_OT_SetPivot(bpy.types.Operator):
             ('MAX_Y', "Max Y", "Set origin to the maximum Y of the bounding box"),
             ('MIN_Z', "Min Z", "Set origin to the minimum Z of the bounding box"),
             ('MAX_Z', "Max Z", "Set origin to the maximum Z of the bounding box"),
+            ('CENTER_X', "Center X", "Set origin to the center of the bounding box on the X axis"),
+            ('CENTER_Y', "Center Y", "Set origin to the center of the bounding box on the Y axis"),
+            ('CENTER_Z', "Center Z", "Set origin to the center of the bounding box on the Z axis"),
         ],
         default='CENTER',
         name="Pivot Type"
@@ -74,7 +87,6 @@ class OBJECT_OT_SetPivot(bpy.types.Operator):
         update_pivot(self, context)
         return {'FINISHED'}
 
-# Create the UI Panel
 class VIEW3D_PT_SetPivotPanel(bpy.types.Panel):
     """Creates a Panel in the Object properties window"""
     bl_label = "Set Pivot"
@@ -93,8 +105,10 @@ class VIEW3D_PT_SetPivotPanel(bpy.types.Panel):
         layout.operator("object.set_pivot", text="Max Y").pivot_type = 'MAX_Y'
         layout.operator("object.set_pivot", text="Min Z").pivot_type = 'MIN_Z'
         layout.operator("object.set_pivot", text="Max Z").pivot_type = 'MAX_Z'
+        layout.operator("object.set_pivot", text="Center X").pivot_type = 'CENTER_X'
+        layout.operator("object.set_pivot", text="Center Y").pivot_type = 'CENTER_Y'
+        layout.operator("object.set_pivot", text="Center Z").pivot_type = 'CENTER_Z'
 
-# Register Classes and Addon Functionality
 def register():
     bpy.utils.register_class(OBJECT_OT_SetPivot)
     bpy.utils.register_class(VIEW3D_PT_SetPivotPanel)
