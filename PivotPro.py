@@ -2,9 +2,9 @@ bl_info = {
     "name": "Set Pivot Points",
     "blender": (2, 80, 0),
     "category": "Object",
-    "description": "Set the pivot of an object to predefined locations",
+    "description": "Set the pivot point of an object to predefined locations with an organized interface",
     "author": "Gero Doll",
-    "version": (1, 0),
+    "version": (1, 2),
     "location": "View3D > Sidebar > Pivot Set",
 }
 
@@ -14,65 +14,85 @@ from mathutils import Vector
 def set_origin_to_bbox(obj, location='CENTER'):
     """
     Snap the 3D cursor to a specified bounding box location and set the object's origin to the cursor.
-    Location can be 'CENTER', 'MIN_X', 'MAX_X', 'MIN_Y', 'MAX_Y', 'MIN_Z', 'MAX_Z',
-    'CENTER_X', 'CENTER_Y', 'CENTER_Z', 'CENTER_XY_BOTTOM', 'CENTER_XY_TOP', 'CENTER_XZ_FRONT', 'CENTER_XZ_BACK', 'CENTER_YZ_LEFT', 'CENTER_YZ_RIGHT'.
+    
+    Args:
+        obj: The target Blender object
+        location: The desired pivot point location. Can be one of:
+            - Basic: CENTER
+            - Axis Extremes: MIN_X, MAX_X, MIN_Y, MAX_Y, MIN_Z, MAX_Z
+            - Axis Centers: CENTER_X, CENTER_Y, CENTER_Z (centers along specific axis only)
+            - Face Centers: CENTER_XY_BOTTOM, CENTER_XY_TOP, CENTER_XZ_FRONT,
+                          CENTER_XZ_BACK, CENTER_YZ_LEFT, CENTER_YZ_RIGHT
     """
-    assert location in ('CENTER', 'MIN_X', 'MAX_X', 'MIN_Y', 'MAX_Y', 'MIN_Z', 'MAX_Z',
-                        'CENTER_X', 'CENTER_Y', 'CENTER_Z', 'CENTER_XY_BOTTOM', 'CENTER_XY_TOP', 'CENTER_XZ_FRONT', 'CENTER_XZ_BACK', 'CENTER_YZ_LEFT', 'CENTER_YZ_RIGHT'), "Invalid location specified."
+    try:
+        assert location in ('CENTER', 'MIN_X', 'MAX_X', 'MIN_Y', 'MAX_Y', 'MIN_Z', 'MAX_Z',
+                          'CENTER_X', 'CENTER_Y', 'CENTER_Z', 'CENTER_XY_BOTTOM', 'CENTER_XY_TOP',
+                          'CENTER_XZ_FRONT', 'CENTER_XZ_BACK', 'CENTER_YZ_LEFT', 'CENTER_YZ_RIGHT'), "Invalid location specified."
 
-    # Calculate the bounding box corners in world space
-    bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+        # Calculate the bounding box corners in world space
+        bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+        center = sum(bbox_corners, Vector()) / 8
 
-    # Determine pivot point based on the specified location
-    if location == 'CENTER':
-        pivot_point = sum(bbox_corners, Vector()) / 8
-    elif location == 'CENTER_XY_BOTTOM':
-        center_xy = sum(bbox_corners, Vector()) / 8
-        min_z = min([corner.z for corner in bbox_corners])
-        pivot_point = Vector((center_xy.x, center_xy.y, min_z))
-    elif location == 'CENTER_XY_TOP':
-        center_xy = sum(bbox_corners, Vector()) / 8
-        max_z = max([corner.z for corner in bbox_corners])
-        pivot_point = Vector((center_xy.x, center_xy.y, max_z))
-    elif location == 'CENTER_XZ_FRONT':
-        center_xz = sum(bbox_corners, Vector()) / 8
-        max_y = max([corner.y for corner in bbox_corners])
-        pivot_point = Vector((center_xz.x, max_y, center_xz.z))
-    elif location == 'CENTER_XZ_BACK':
-        center_xz = sum(bbox_corners, Vector()) / 8
-        min_y = min([corner.y for corner in bbox_corners])
-        pivot_point = Vector((center_xz.x, min_y, center_xz.z))
-    elif location == 'CENTER_YZ_LEFT':
-        center_yz = sum(bbox_corners, Vector()) / 8
-        max_x = max([corner.x for corner in bbox_corners])
-        pivot_point = Vector((max_x, center_yz.y, center_yz.z))
-    elif location == 'CENTER_YZ_RIGHT':
-        center_yz = sum(bbox_corners, Vector()) / 8
-        min_x = min([corner.x for corner in bbox_corners])
-        pivot_point = Vector((min_x, center_yz.y, center_yz.z))
-    else:
-        axis_index = {'X': 0, 'Y': 1, 'Z': 2}[location.split('_')[-1]]
-        if location.startswith('CENTER'):
-            pivot_point = Vector((0, 0, 0))
-            count = 0
-            for i in range(8):
-                if i & (1 << axis_index):
-                    pivot_point += bbox_corners[i]
-                    count += 1
-            pivot_point /= count
-        else:
-            pivot_points = [corner[axis_index] for corner in bbox_corners]
-            if 'MIN' in location:
-                pivot_value = min(pivot_points)
-            else:  # 'MAX' in location
-                pivot_value = max(pivot_points)
-            pivot_point = bbox_corners[pivot_points.index(pivot_value)]
+        # Get current pivot location (origin)
+        current_pivot = obj.matrix_world.translation.copy()
 
-    # Move the 3D cursor to the calculated pivot point
-    bpy.context.scene.cursor.location = pivot_point
+        # Determine pivot point based on the specified location
+        if location == 'CENTER':
+            pivot_point = center
+        elif location == 'CENTER_XY_BOTTOM':
+            min_z = min([corner.z for corner in bbox_corners])
+            pivot_point = Vector((center.x, center.y, min_z))
+        elif location == 'CENTER_XY_TOP':
+            max_z = max([corner.z for corner in bbox_corners])
+            pivot_point = Vector((center.x, center.y, max_z))
+        elif location == 'CENTER_XZ_FRONT':
+            max_y = max([corner.y for corner in bbox_corners])
+            pivot_point = Vector((center.x, max_y, center.z))
+        elif location == 'CENTER_XZ_BACK':
+            min_y = min([corner.y for corner in bbox_corners])
+            pivot_point = Vector((center.x, min_y, center.z))
+        elif location == 'CENTER_YZ_LEFT':
+            max_x = max([corner.x for corner in bbox_corners])
+            pivot_point = Vector((max_x, center.y, center.z))
+        elif location == 'CENTER_YZ_RIGHT':
+            min_x = min([corner.x for corner in bbox_corners])
+            pivot_point = Vector((min_x, center.y, center.z))
+        elif location.startswith('MIN') or location.startswith('MAX'):
+            # Get the axis (X, Y, or Z)
+            axis = location.split('_')[1]
+            axis_index = {'X': 0, 'Y': 1, 'Z': 2}[axis]
+            
+            # Create a new vector starting from the center
+            pivot_point = center.copy()
+            
+            # Get all values for the specified axis
+            axis_values = [corner[axis_index] for corner in bbox_corners]
+            
+            # Set the extreme value for the specified axis only
+            if location.startswith('MIN'):
+                pivot_point[axis_index] = min(axis_values)
+            else:  # MAX
+                pivot_point[axis_index] = max(axis_values)
+        else:  # CENTER_X, CENTER_Y, CENTER_Z
+            # Get the axis (X, Y, or Z)
+            axis = location.split('_')[1]
+            axis_index = {'X': 0, 'Y': 1, 'Z': 2}[axis]
+            
+            # Start with current pivot location
+            pivot_point = current_pivot.copy()
+            
+            # Only center the specified axis
+            pivot_point[axis_index] = center[axis_index]
 
-    # Set the origin of the object to the location of the 3D cursor
-    bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+        # Move the 3D cursor to the calculated pivot point
+        bpy.context.scene.cursor.location = pivot_point
+
+        # Set the origin of the object to the location of the 3D cursor
+        bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+        
+    except Exception as e:
+        self.report({'ERROR'}, f"Error setting pivot point: {str(e)}")
+        return {'CANCELLED'}
 
 def update_pivot(self, context):
     obj = context.active_object
@@ -80,7 +100,7 @@ def update_pivot(self, context):
         set_origin_to_bbox(obj, self.pivot_type)
 
 class OBJECT_OT_SetPivot(bpy.types.Operator):
-    """Set Pivot Point"""
+    """Set the pivot point of the selected object to a specified location"""
     bl_idname = "object.set_pivot"
     bl_label = "Set Pivot"
     bl_options = {'REGISTER', 'UNDO'}
@@ -94,9 +114,9 @@ class OBJECT_OT_SetPivot(bpy.types.Operator):
             ('MAX_Y', "Max Y", "Set origin to the maximum Y of the bounding box"),
             ('MIN_Z', "Min Z", "Set origin to the minimum Z of the bounding box"),
             ('MAX_Z', "Max Z", "Set origin to the maximum Z of the bounding box"),
-            ('CENTER_X', "Center X", "Set origin to the center of the bounding box on the X axis"),
-            ('CENTER_Y', "Center Y", "Set origin to the center of the bounding box on the Y axis"),
-            ('CENTER_Z', "Center Z", "Set origin to the center of the bounding box on the Z axis"),
+            ('CENTER_X', "Center X", "Set origin to the center of the X axis only"),
+            ('CENTER_Y', "Center Y", "Set origin to the center of the Y axis only"),
+            ('CENTER_Z', "Center Z", "Set origin to the center of the Z axis only"),
             ('CENTER_XY_BOTTOM', "Center XY Bottom", "Set origin to the center of the XY plane at the bottom"),
             ('CENTER_XY_TOP', "Center XY Top", "Set origin to the center of the XY plane at the top"),
             ('CENTER_XZ_FRONT', "Center XZ Front", "Set origin to the center of the XZ plane at the front"),
@@ -113,11 +133,15 @@ class OBJECT_OT_SetPivot(bpy.types.Operator):
         return context.active_object is not None and context.active_object.type == 'MESH'
 
     def execute(self, context):
-        update_pivot(self, context)
-        return {'FINISHED'}
+        try:
+            update_pivot(self, context)
+            return {'FINISHED'}
+        except Exception as e:
+            self.report({'ERROR'}, f"Error: {str(e)}")
+            return {'CANCELLED'}
 
 class VIEW3D_PT_SetPivotPanel(bpy.types.Panel):
-    """Creates a Panel in the Object properties window"""
+    """Panel for setting object pivot points to various predefined locations"""
     bl_label = "Set Pivot"
     bl_idname = "VIEW3D_PT_set_pivot"
     bl_space_type = 'VIEW_3D'
@@ -126,23 +150,46 @@ class VIEW3D_PT_SetPivotPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-
-        layout.operator("object.set_pivot", text="Center").pivot_type = 'CENTER'
-        layout.operator("object.set_pivot", text="Min X").pivot_type = 'MIN_X'
-        layout.operator("object.set_pivot", text="Max X").pivot_type = 'MAX_X'
-        layout.operator("object.set_pivot", text="Min Y").pivot_type = 'MIN_Y'
-        layout.operator("object.set_pivot", text="Max Y").pivot_type = 'MAX_Y'
-        layout.operator("object.set_pivot", text="Min Z").pivot_type = 'MIN_Z'
-        layout.operator("object.set_pivot", text="Max Z").pivot_type = 'MAX_Z'
-        layout.operator("object.set_pivot", text="Center X").pivot_type = 'CENTER_X'
-        layout.operator("object.set_pivot", text="Center Y").pivot_type = 'CENTER_Y'
-        layout.operator("object.set_pivot", text="Center Z").pivot_type = 'CENTER_Z'
-        layout.operator("object.set_pivot", text="Center XY Bottom").pivot_type = 'CENTER_XY_BOTTOM'
-        layout.operator("object.set_pivot", text="Center XY Top").pivot_type = 'CENTER_XY_TOP'
-        layout.operator("object.set_pivot", text="Center XZ Front").pivot_type = 'CENTER_XZ_FRONT'
-        layout.operator("object.set_pivot", text="Center XZ Back").pivot_type = 'CENTER_XZ_BACK'
-        layout.operator("object.set_pivot", text="Center YZ Left").pivot_type = 'CENTER_YZ_LEFT'
-        layout.operator("object.set_pivot", text="Center YZ Right").pivot_type = 'CENTER_YZ_RIGHT'
+        
+        # Basic Center Option
+        box = layout.box()
+        box.label(text="Basic", icon='DOT')
+        box.operator("object.set_pivot", text="Center").pivot_type = 'CENTER'
+        
+        # Axis Extremes
+        box = layout.box()
+        box.label(text="Axis Extremes", icon='EMPTY_AXIS')
+        row = box.row()
+        col = row.column()
+        col.operator("object.set_pivot", text="Min X").pivot_type = 'MIN_X'
+        col.operator("object.set_pivot", text="Min Y").pivot_type = 'MIN_Y'
+        col.operator("object.set_pivot", text="Min Z").pivot_type = 'MIN_Z'
+        col = row.column()
+        col.operator("object.set_pivot", text="Max X").pivot_type = 'MAX_X'
+        col.operator("object.set_pivot", text="Max Y").pivot_type = 'MAX_Y'
+        col.operator("object.set_pivot", text="Max Z").pivot_type = 'MAX_Z'
+        
+        # Axis Centers
+        box = layout.box()
+        box.label(text="Axis Centers", icon='ORIENTATION_GIMBAL')
+        row = box.row(align=True)
+        row.operator("object.set_pivot", text="X").pivot_type = 'CENTER_X'
+        row.operator("object.set_pivot", text="Y").pivot_type = 'CENTER_Y'
+        row.operator("object.set_pivot", text="Z").pivot_type = 'CENTER_Z'
+        
+        # Face Centers
+        box = layout.box()
+        box.label(text="Face Centers", icon='FACESEL')
+        col = box.column(align=True)
+        row = col.row(align=True)
+        row.operator("object.set_pivot", text="Top").pivot_type = 'CENTER_XY_TOP'
+        row.operator("object.set_pivot", text="Bottom").pivot_type = 'CENTER_XY_BOTTOM'
+        row = col.row(align=True)
+        row.operator("object.set_pivot", text="Front").pivot_type = 'CENTER_XZ_FRONT'
+        row.operator("object.set_pivot", text="Back").pivot_type = 'CENTER_XZ_BACK'
+        row = col.row(align=True)
+        row.operator("object.set_pivot", text="Left").pivot_type = 'CENTER_YZ_LEFT'
+        row.operator("object.set_pivot", text="Right").pivot_type = 'CENTER_YZ_RIGHT'
 
 def register():
     bpy.utils.register_class(OBJECT_OT_SetPivot)
