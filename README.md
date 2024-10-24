@@ -1,9 +1,9 @@
-# PivotPro
+# Pivotal
 
-<img src="https://github.com/Limbicnation/PivotPro/blob/main/images/PivotPro3.jpg" alt="PivotPro" width="512" height="512">
+<img src="https://github.com/Limbicnation/PivotPro/blob/main/images/PivotPro3.jpg" alt="Pivotal" width="512" height="512">
 
-PivotPro is a Blender addon designed to enhance your modeling and animation workflow by providing quick access to advanced pivot point controls. 
-With PivotPro, you can set the pivot (origin) of your selected object to various strategic points with just a click, organized in an intuitive interface.
+Pivotal is a Blender addon designed to enhance your modeling and animation workflow by providing quick access to advanced pivot point controls. 
+With Pivotal, you can set the pivot (origin) of your selected object to various strategic points with just a click, organized in an intuitive interface.
 
 ## Features
 
@@ -35,7 +35,7 @@ The addon organizes pivot controls into logical groups for easier access:
 ## Usage
 
 1. Select the object in the 3D viewport.
-2. Open the PivotPro panel from the sidebar (`View3D > Sidebar > Pivot Set`).
+2. Open the Pivotal panel from the sidebar (`View3D > Sidebar > Pivot Set`).
 3. Choose from one of the four categories:
    - Use "Basic" for simple center alignment
    - Use "Axis Extremes" to set pivot to the minimum or maximum points
