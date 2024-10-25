@@ -1,6 +1,8 @@
 # Pivotal
 
-<img src="https://github.com/Limbicnation/PivotPro/blob/main/images/pivotal.png" alt="Pivotal" width="512" height="512">
+<div style="max-width: 512px; margin: 0 auto;">
+  <img src="https://github.com/Limbicnation/PivotPro/blob/main/images/pivotal.png" alt="Pivotal" style="width: 100%; height: auto; max-width: 512px; display: block;">
+</div>
 
 Pivotal is a Blender addon designed to enhance your modeling and animation workflow by providing quick access to advanced pivot point controls. 
 With Pivotal, you can set the pivot (origin) of your selected object to various strategic points with just a click, organized in an intuitive interface.
